@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts@4.9.3/access/Ownable.sol";
+import "@openzeppelin/contracts@4.9.3/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/utils/SafeERC20.sol";
 import "./BitFracToken.sol";
 
 /**
@@ -31,6 +31,7 @@ contract BitFracRevenueDistribution is Ownable, ReentrancyGuard {
         uint256 id;
         uint256 totalAmount;         // Total revenue in this pool in stablecoin
         uint256 totalEligibleTokens; // Total eligible tokens at snapshot time
+        uint256 snapshotId;          // Snapshot ID from BitFracToken for this pool
         uint256 startTime;           // When pool was created
         uint256 endTime;             // Deadline to claim from this pool
         bool finalized;              // Whether the pool has been finalized for distribution
@@ -58,7 +59,7 @@ contract BitFracRevenueDistribution is Ownable, ReentrancyGuard {
     event MiningFacilityAdded(string name, string location, uint256 hashRate);
     event MiningFacilityUpdated(uint256 indexed facilityId, uint256 hashRate, bool active);
     
-    constructor(address _tokenAddress, address _stablecoinAddress) Ownable(msg.sender) {
+    constructor(address _tokenAddress, address _stablecoinAddress) Ownable() {
         bitfracToken = BitFracToken(_tokenAddress);
         stablecoin = IERC20(_stablecoinAddress);
         minimumTokensForRevenue = 1000 * 10**18; // 1,000 tokens
@@ -83,6 +84,13 @@ contract BitFracRevenueDistribution is Ownable, ReentrancyGuard {
         pool.startTime = block.timestamp;
         pool.endTime = block.timestamp + DISTRIBUTION_PERIOD;
         pool.finalized = false;
+
+        // Trigger snapshot in the token contract
+        try bitfracToken.triggerSnapshot() returns (uint256 newSnapshotId) {
+            pool.snapshotId = newSnapshotId;
+        } catch {
+            revert("Failed to trigger snapshot in token contract");
+        }
         
         emit RevenuePoolCreated(currentPoolId, amount, pool.startTime, pool.endTime);
     }
@@ -96,13 +104,16 @@ contract BitFracRevenueDistribution is Ownable, ReentrancyGuard {
         require(pool.id == poolId, "Pool does not exist");
         require(!pool.finalized, "Pool already finalized");
         
-        // Calculate total eligible tokens
-        // In a real implementation, you would use a snapshot mechanism
-        // For simplicity, we're using current total supply minus staked tokens
-        uint256 totalSupply = bitfracToken.totalSupply();
-        uint256 stakedTokens = bitfracToken.totalStaked();
+        // Calculate total eligible tokens using the snapshot
+        require(pool.snapshotId > 0, "Snapshot ID not set for pool");
+        uint256 snapshotTotalSupply = bitfracToken.totalSupplyAt(pool.snapshotId);
         
-        pool.totalEligibleTokens = totalSupply - stakedTokens;
+        // Eligible tokens are all tokens at the time of the snapshot.
+        // If staked tokens (held by BitFracToken contract) should be excluded, that logic would be re-added here.
+        // For now, assuming all tokens (including staked ones) are eligible.
+        pool.totalEligibleTokens = snapshotTotalSupply;
+        require(pool.totalEligibleTokens > 0, "No eligible tokens at snapshot");
+
         pool.finalized = true;
         
         emit RevenuePoolFinalized(poolId, pool.totalEligibleTokens);
@@ -118,12 +129,14 @@ contract BitFracRevenueDistribution is Ownable, ReentrancyGuard {
         require(pool.finalized, "Pool not finalized yet");
         require(!pool.claimed[msg.sender], "Already claimed from this pool");
         require(block.timestamp <= pool.endTime, "Claim period has ended");
+        require(pool.snapshotId > 0, "Snapshot ID not set for pool");
         
-        uint256 userBalance = bitfracToken.balanceOf(msg.sender);
-        require(userBalance >= minimumTokensForRevenue, "Insufficient token balance");
+        uint256 userBalanceAtSnapshot = bitfracToken.balanceOfAt(msg.sender, pool.snapshotId);
+        require(userBalanceAtSnapshot >= minimumTokensForRevenue, "Insufficient token balance at snapshot");
         
-        // Calculate user's share
-        uint256 userShare = pool.totalAmount * userBalance / pool.totalEligibleTokens;
+        // Calculate user's share based on their balance at the time of snapshot
+        require(pool.totalEligibleTokens > 0, "Total eligible tokens is zero, cannot calculate share");
+        uint256 userShare = pool.totalAmount * userBalanceAtSnapshot / pool.totalEligibleTokens;
         
         // Mark as claimed
         pool.claimed[msg.sender] = true;

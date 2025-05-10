@@ -1,24 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts@4.9.3/access/Ownable.sol";
+import "@openzeppelin/contracts@4.9.3/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts@4.9.3/token/ERC20/extensions/ERC20Snapshot.sol";
 
 /**
  * @title BitFrac Token
  * @dev ERC20 token for BitFrac project with presale and staking functionality
  */
-contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
-    // Total token supply (55 million tokens)
-    uint256 public constant MAX_SUPPLY = 55_000_000 * 10**18;
+contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard, ERC20Snapshot {
+    // Total token supply (1 million tokens)
+    uint256 public constant MAX_SUPPLY = 1_000_000 * 10**18;
     
     // Token distribution
-    uint256 public constant PRESALE_ALLOCATION = 30_000_000 * 10**18; // 55% for presale
-    uint256 public constant TEAM_ALLOCATION = 5_500_000 * 10**18;     // 10% for team
-    uint256 public constant MINING_REWARDS = 13_750_000 * 10**18;     // 25% for mining rewards
-    uint256 public constant MARKETING_ALLOCATION = 5_500_000 * 10**18;// 10% for marketing
+    uint256 public constant PRESALE_ALLOCATION = 550_000 * 10**18; // 55% for presale
+    uint256 public constant TEAM_ALLOCATION = 100_000 * 10**18;     // 10% for team
+    uint256 public constant MINING_REWARDS = 250_000 * 10**18;     // 25% for mining rewards
+    uint256 public constant MARKETING_ALLOCATION = 100_000 * 10**18;// 10% for marketing
     
     // Presale rounds configuration
     uint8 public currentRound = 0;
@@ -49,24 +50,19 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
     uint256 public minStakingPeriod = 30 days;
     uint256 public totalStaked = 0;
     
-    // Mining revenue distribution
-    uint256 public accumulatedRevenue = 0;
-    mapping(address => uint256) public lastRevenueClaimTime;
-    
     // Events
     event TokensPurchased(address indexed buyer, uint8 round, uint256 amount, uint256 bonus);
     event RoundStarted(uint8 round, uint256 price);
     event RoundEnded(uint8 round, uint256 tokensSold);
     event Staked(address indexed staker, uint256 amount, uint256 duration);
     event Unstaked(address indexed staker, uint256 amount, uint256 reward);
-    event RevenueDistributed(uint256 amount);
-    event RevenueClaimed(address indexed user, uint256 amount);
+    // Revenue related events are handled by BitFracRevenueDistribution contract
     
-    constructor() ERC20("BitFrac", "BFC") Ownable(msg.sender) {
+    constructor() ERC20("BitFrac", "BFC") Ownable() {
         // Initialize presale rounds
         rounds[1] = Round({
             price: 400,           // 4 cents
-            maxTokens: 4_285_714 * 10**18,
+            maxTokens: 78_571 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,  // 1,000 tokens
             maxPurchase: 100_000 * 10**18, // 100,000 tokens
@@ -76,7 +72,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         
         rounds[2] = Round({
             price: 450,           // 4.5 cents
-            maxTokens: 4_285_714 * 10**18,
+            maxTokens: 78_571 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,
             maxPurchase: 100_000 * 10**18,
@@ -86,7 +82,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         
         rounds[3] = Round({
             price: 500,           // 5 cents
-            maxTokens: 4_285_714 * 10**18,
+            maxTokens: 78_571 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,
             maxPurchase: 100_000 * 10**18,
@@ -96,7 +92,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         
         rounds[4] = Round({
             price: 550,           // 5.5 cents
-            maxTokens: 4_285_714 * 10**18,
+            maxTokens: 78_571 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,
             maxPurchase: 100_000 * 10**18,
@@ -106,7 +102,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         
         rounds[5] = Round({
             price: 600,           // 6 cents
-            maxTokens: 4_285_714 * 10**18,
+            maxTokens: 78_571 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,
             maxPurchase: 100_000 * 10**18,
@@ -116,7 +112,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         
         rounds[6] = Round({
             price: 650,           // 6.5 cents
-            maxTokens: 4_285_714 * 10**18,
+            maxTokens: 78_571 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,
             maxPurchase: 100_000 * 10**18,
@@ -126,7 +122,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         
         rounds[7] = Round({
             price: 700,           // 7 cents
-            maxTokens: 4_285_716 * 10**18,
+            maxTokens: 78_574 * 10**18,
             soldTokens: 0,
             minPurchase: 1000 * 10**18,
             maxPurchase: 100_000 * 10**18,
@@ -241,34 +237,7 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
         emit Unstaked(msg.sender, amount, reward);
     }
     
-    /**
-     * @dev Distribute mining revenue to token holders
-     */
-    function distributeRevenue(uint256 amount) external onlyOwner {
-        accumulatedRevenue += amount;
-        emit RevenueDistributed(amount);
-    }
-    
-    /**
-     * @dev Claim share of mining revenue based on token holding
-     */
-    function claimRevenue() external nonReentrant {
-        uint256 userBalance = balanceOf(msg.sender);
-        require(userBalance > 0, "No tokens held");
-        
-        uint256 totalSupply = totalSupply();
-        uint256 userShare = accumulatedRevenue * userBalance / totalSupply;
-        
-        require(userShare > 0, "No revenue to claim");
-        
-        // Update last claim time
-        lastRevenueClaimTime[msg.sender] = block.timestamp;
-        
-        // Send revenue (implement actual transfer mechanism)
-        // This could be sending ETH, stable coins, or other tokens
-        
-        emit RevenueClaimed(msg.sender, userShare);
-    }
+    // Functions distributeRevenue and claimRevenue are removed as this is handled by BitFracRevenueDistribution.sol
     
     /**
      * @dev Set staking reward rate
@@ -288,8 +257,40 @@ contract BitFracToken is ERC20, ERC20Burnable, Ownable, ReentrancyGuard {
     /**
      * @dev Check if total supply exceeds max supply before minting
      */
-    function _mint(address account, uint256 amount) internal override {
+    function _mint(address account, uint256 amount) internal override(ERC20) {
         require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
         super._mint(account, amount);
     }
-} 
+
+    /**
+     * @dev Creates a new snapshot and returns its ID.
+     * This function can be called by the owner (e.g., BitFracRevenueDistribution contract owner)
+     * to capture the token balances at a specific point in time for revenue distribution.
+     */
+    function triggerSnapshot() external onlyOwner returns (uint256) {
+        return _snapshot();
+    }
+
+    // Override _burn to comply with ERC20Snapshot if needed, though ERC20Burnable handles it.
+    // If direct calls to _burn are made and need snapshot interaction beyond what ERC20Snapshot's _update provides.
+    // function _burn(address account, uint256 amount) internal virtual override(ERC20, ERC20Snapshot) {
+    //     super._burn(account, amount);
+    // }
+
+    // Override _transfer to comply with ERC20Snapshot, though it's typically handled by _update.
+    // function _transfer(
+    //     address from,
+    //     address to,
+    //     uint256 amount
+    // ) internal virtual override(ERC20, ERC20Snapshot) {
+    //     super._transfer(from, to, amount);
+    // }
+
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override(ERC20, ERC20Snapshot) {
+        super._beforeTokenTransfer(from, to, amount);
+    }
+}
