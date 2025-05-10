@@ -1,29 +1,45 @@
-// src/config.js
-// Replace with your actual deployed contract addresses and ABIs
-// Testnet (e.g., Sepolia)
-export const BITFRAC_TOKEN_ADDRESS = "YOUR_BITFRAC_TOKEN_ADDRESS";
-export const BITFRAC_PRESALE_ADDRESS = "YOUR_BITFRAC_PRESALE_ADDRESS";
-export const BITFRAC_REVENUE_DIST_ADDRESS = "YOUR_BITFRAC_REVENUE_DIST_ADDRESS";
-
-// Import your ABIs (assuming they are in src/abis/)
 import BitFracTokenAbi from './abis/BitFracToken.json';
 import BitFracPresaleAbi from './abis/BitFracPresale.json';
 import BitFracRevenueDistributionAbi from './abis/BitFracRevenueDistribution.json';
+import MockStableCoinAbi from './abis/MockStableCoin.json'; // ABI for MockStableCoin
 
-export const BITFRAC_TOKEN_ABI = BitFracTokenAbi.abi; // Adjust if ABI structure is different
-export const BITFRAC_PRESALE_ABI = BitFracPresaleAbi.abi;
-export const BITFRAC_REVENUE_DIST_ABI = BitFracRevenueDistributionAbi.abi;
-
-// Add Stablecoin address if you are using one for revenue distribution (for testnet)
-export const STABLECOIN_ADDRESS_FOR_REVENUE = "STABLECOIN_ON_TESTNET_ADDRESS";
-
-// Decimals for input currencies (smallest unit)
-// This is crucial for the frontend to send the correct 'amount' to registerInvestment
-export const CURRENCY_DECIMALS = {
-    "BTC": 8,  // User inputs BTC amount, frontend converts to satoshis * 10^0 for the 'amount' field? Or just satoshis directly.
-               // The contract expects amount in satoshis.
-    "ETH": 18, // User inputs ETH, frontend converts to wei. Contract expects wei.
-    "XRP": 6,  // Example, ensure this matches how you want to handle XRP input and contract expectation.
-    "DOGE": 8, // Example
-    "USDT": 6  // Example for USDT (usually 6 or 18 depending on the version)
+// Deployed contract addresses on Sepolia testnet
+const CONTRACT_ADDRESSES = {
+  bitFracToken: '0x39b9271A02b44Dfdf0bD74eF72dE40644D86C571',
+  bitFracPresale: '0x0Cd48D51b605cbc4840B43AF0d8555A007Aa6378',
+  bitFracRevenueDistribution: '0x5d9c0851A7808B73C751BB074d666d6478f9C24E',
+  mockStableCoin: '0x457c6491c2A1F85F0B01Cf75C25580A2523eD420',
 };
+
+const CHAIN_ID = '0xaa36a7'; // Sepolia testnet (ID: 11155111)
+
+export const bitFracTokenConfig = {
+  address: CONTRACT_ADDRESSES.bitFracToken,
+  abi: BitFracTokenAbi.abi || BitFracTokenAbi, // Handles if abi is nested or direct
+};
+
+export const bitFracPresaleConfig = {
+  address: CONTRACT_ADDRESSES.bitFracPresale,
+  abi: BitFracPresaleAbi.abi || BitFracPresaleAbi, // Handles if abi is nested or direct
+};
+
+export const bitFracRevenueDistributionConfig = {
+  address: CONTRACT_ADDRESSES.bitFracRevenueDistribution,
+  abi: BitFracRevenueDistributionAbi.abi || BitFracRevenueDistributionAbi, // Handles if abi is nested or direct
+};
+
+export const mockStableCoinConfig = {
+  address: CONTRACT_ADDRESSES.mockStableCoin,
+  abi: MockStableCoinAbi, // MockStableCoin.json is an array (the ABI itself)
+};
+
+export const appConfig = {
+    CHAIN_ID,
+    CONTRACT_ADDRESSES
+};
+
+// Helper function to get contract instance
+// import { ethers } from 'ethers';
+// export const getContract = (config, providerOrSigner) => {
+//   return new ethers.Contract(config.address, config.abi, providerOrSigner);
+// };

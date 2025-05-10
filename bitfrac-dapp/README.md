@@ -1,12 +1,10 @@
-# React + Vite
+SepoliaETH testnet:
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+- Mockstable coin: 0x457c6491c2A1F85F0B01Cf75C25580A2523eD420
 
-Currently, two official plugins are available:
+- BitFracToken: 0x39b9271A02b44Dfdf0bD74eF72dE40644D86C571
+|
+.
+- BitFracPresale: 0x0Cd48D51b605cbc4840B43AF0d8555A007Aa6378
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- BitFracRevenueDistribution: 0x5d9c0851A7808B73C751BB074d666d6478f9C24E
